@@ -5,7 +5,7 @@ import threading
 from flask import Flask, request, jsonify
 
 # ========== ВАШИ ДАННЫЕ ==========
-IIKO_API_LOGIN = "e7f619e9ec09481b829d79254b6d0c46"
+IIKO_API_LOGIN = "47769dc09d974cbb981e55b642e01c23"
 IIKO_ORG_ID = "a0d2ab37-a949-4354-b26e-075eef2a15d3"
 IIKO_API_URL = "https://api-ru.iiko.services/api/1"
 
