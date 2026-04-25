@@ -82,6 +82,14 @@ monitoring_thread = threading.Thread(target=check_long_cooking, daemon=True)
 monitoring_thread.start()
 print("🟢 Фоновый мониторинг долгих заказов запущен (проверка каждую минуту)")
 
+# ===== ОБРАБОТЧИКИ ВЕБХУКОВ =====
+# Обработчик для корневого адреса (iiko часто отправляет сюда)
+@app.route('/', methods=['POST'])
+def handle_webhook_root():
+    """Обрабатывает вебхуки, которые iiko отправляет на корневой адрес"""
+    return handle_webhook()
+
+# Основной обработчик вебхуков
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
     global last_status, cooking_start_time, cooking_warning_sent
@@ -101,6 +109,7 @@ def handle_webhook():
         customer_name = "Не указан"
         comment = ""
         cancel_reason = ""
+        cancel_operator_comment = ""
         
         if event_type in ['DeliveryOrderUpdate', 'TableOrderUpdate']:
             event_info = webhook.get('eventInfo', {})
@@ -110,9 +119,35 @@ def handle_webhook():
             phone = order.get('phone', 'Не указан')
             customer_name = order.get('customer', {}).get('name', 'Не указан')
             comment = order.get('comment', '')
+            
             cancel_info = order.get('cancelInfo', {})
             if cancel_info:
-                cancel_reason = cancel_info.get('reason', '')
+                # Причина отмены (из списка)
+                cause = cancel_info.get('cause', {})
+                if isinstance(cause, dict):
+                    cancel_reason = cause.get('name', '')
+                elif isinstance(cause, str):
+                    cancel_reason = cause
+                # Комментарий оператора
+                cancel_operator_comment = cancel_info.get('comment', '')
+            
+            if not cancel_reason:
+                cancel_reason = order.get('cancelReason', '')
+                        
+        elif event_type == 'TableOrderUpdate':
+            event_info = webhook.get('eventInfo', {})
+            order = event_info.get('order', {})
+            status = order.get('status')
+            order_number = order.get('number', 'Неизвестно')
+            phone = order.get('phone', 'Не указан')
+            customer_name = order.get('customer', {}).get('name', 'Не указан')
+            comment = order.get('comment', '')
+            
+            cancel_info = order.get('cancelInfo', {})
+            if cancel_info:
+                cause = cancel_info.get('cause', {})
+                if isinstance(cause, dict):
+                    cancel_reason = cause.get('name', '')
                 cancel_operator_comment = cancel_info.get('comment', '')
         else:
             status = webhook.get('status')
@@ -120,18 +155,22 @@ def handle_webhook():
             phone = webhook.get('phone', 'Не указан')
             comment = webhook.get('comment', '')
             cancel_reason = webhook.get('cancelReason', '')
+            cancel_operator_comment = webhook.get('cancelComment', '')
         
         print(f"🔍 Номер заказа: {order_number}")
         print(f"🔍 Статус заказа: {status}")
         if comment:
             print(f"📝 Комментарий: {comment}")
+        if cancel_reason:
+            print(f"❌ Причина отмены: {cancel_reason}")
+        if cancel_operator_comment:
+            print(f"💬 Комментарий оператора: {cancel_operator_comment}")
         
         # ===== ОТСЛЕЖИВАНИЕ ВРЕМЕНИ ПРИГОТОВЛЕНИЯ =====
         if status and status.upper() == 'COOKINGSTARTED':
             if order_number not in cooking_start_time:
                 cooking_start_time[order_number] = time.time()
                 print(f"⏱️ Заказ {order_number}: начато приготовление в {time.strftime('%H:%M:%S')}")
-                # Если было отправлено предупреждение для этого заказа, сбрасываем
                 if order_number in cooking_warning_sent:
                     del cooking_warning_sent[order_number]
         
@@ -180,6 +219,9 @@ def handle_webhook():
             if cancel_operator_comment:
                 message += f"\n💬 <b>Комментарий оператора:</b> {cancel_operator_comment}"
             
+            if not cancel_reason and not cancel_operator_comment:
+                message += f"\n\n❌ <i>Причина отмены не указана</i>"
+            
             message += f"\n\n<i>Время: {time.strftime('%H:%M:%S')}</i>"
             
             send_telegram_message(message)
@@ -209,16 +251,16 @@ def active_cooking():
     return "<br>".join(result)
 
 if __name__ == '__main__':
+    import os
     print("=" * 60)
     print("🚀 БОТ ДЛЯ IIKO ЗАПУЩЕН С АКТИВНЫМ МОНИТОРИНГОМ")
     print("=" * 60)
-    print(f"📡 Сервер: http://127.0.0.1:5000")
-    print(f"🔗 Вебхук: http://127.0.0.1:5000/webhook")
-    print(f"🧪 Тест: http://127.0.0.1:5000/test_telegram")
-    print(f"📊 Активные заказы: http://127.0.0.1:5000/active_cooking")
+    print(f"📡 Сервер: http://0.0.0.0:{os.environ.get('PORT', 5000)}")
+    print(f"🔗 Вебхук: /webhook (и корневой / тоже принимает POST)")
     print("=" * 60)
     print("📌 Отслеживается только статус CANCELLED")
     print("📌 ДОПОЛНИТЕЛЬНО: каждую минуту проверяем заказы в готовке")
     print("📌 Если готовка >30 минут — приходит предупреждение")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
