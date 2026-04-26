@@ -1,3 +1,4 @@
+import os
 import requests
 import time
 import json
@@ -5,12 +6,12 @@ from flask import Flask, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # ========== ВАШИ ДАННЫЕ ==========
-IIKO_API_LOGIN = "47769dc09d974cbb981e55b642e01c23"
-IIKO_ORG_ID = "a0d2ab37-a949-4354-b26e-075eef2a15d3"
-IIKO_API_URL = "https://api-ru.iiko.services/api/1"
+IIKO_API_LOGIN = os.environ.get("IIKO_API_LOGIN", "")
+IIKO_ORG_ID = os.environ.get("IIKO_ORG_ID", "")
+IIKO_API_URL = os.environ.get("IIKO_API_URL", "https://api-ru.iiko.services/api/1")
 
-TELEGRAM_BOT_TOKEN = "7983836458:AAHDn8MBYdSf5FtXmDfF4VHy8CDdWC6pBy8"
-TELEGRAM_CHAT_ID = "-5257859261"
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 # ========== КОД ==========
 app = Flask(__name__)
@@ -145,6 +146,5 @@ def test_telegram():
     return "OK"
 
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
