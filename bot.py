@@ -5,7 +5,6 @@ import json
 from flask import Flask, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
 
-# ========== ВАШИ ДАННЫЕ ==========
 IIKO_API_LOGIN = os.environ.get("IIKO_API_LOGIN", "")
 IIKO_ORG_ID = os.environ.get("IIKO_ORG_ID", "")
 IIKO_API_URL = os.environ.get("IIKO_API_URL", "https://api-ru.iiko.services/api/1")
@@ -13,7 +12,6 @@ IIKO_API_URL = os.environ.get("IIKO_API_URL", "https://api-ru.iiko.services/api/
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
-# ========== КОД ==========
 app = Flask(__name__)
 
 last_status = {}
@@ -36,7 +34,6 @@ def send_telegram_message(text):
         print(f"❌ Ошибка: {e}")
 
 def check_long_cooking():
-    """Фоновая задача: проверяет заказы, готовящиеся дольше 30 минут"""
     print(f"\n⏰ Фоновая проверка: активных заказов в готовке - {len(cooking_start_time)}")
     current_time = time.time()
     for order_number, start_time in list(cooking_start_time.items()):
@@ -50,7 +47,6 @@ def check_long_cooking():
 <i>Время: {time.strftime('%H:%M:%S')}</i>"""
             send_telegram_message(message)
 
-# Запускаем фоновый планировщик
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=check_long_cooking, trigger="interval", seconds=60)
 scheduler.start()
